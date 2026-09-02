@@ -1,5 +1,3 @@
-// sample file
-
 import mongoose from "mongoose";
 
 

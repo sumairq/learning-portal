@@ -6,14 +6,15 @@ const dbConnect = async ()=>{
     const mongoURI = process.env.MONGO_URI
     if(!mongoURI){
         console.error('❌ Error: MONGO_URI environment variable is missing.')
-        process.exit(1);
+        throw new Error('MONGO_URI environment variable is missing.');
+        
     }
     const conn =  await mongoose.connect(mongoURI)
     console.log(`🍃 MongoDB Connected: ${conn.connection.host}`)
 
   }catch(error){
     console.error(`❌ Initial connection error: ${(error as Error).message}`)
-    process.exit(1);
+    throw error;
   }
 }
 

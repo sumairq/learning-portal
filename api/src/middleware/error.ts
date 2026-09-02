@@ -14,6 +14,6 @@ res.status(statusCode).json({
     success: false,
     message: err.message || 'Internal server error',
     // Only show stack trace in development mode
-    stack: process.env.NODE_ENV === 'development' ? err.stack : {}
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
 })
 }

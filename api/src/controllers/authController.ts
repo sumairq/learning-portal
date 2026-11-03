@@ -1,12 +1,13 @@
 // this is the auth controller
 
+import type { NextFunction, Request, Response } from "express";
 import User from "../models/user.js";
 import jwt from 'jsonwebtoken'
 
-export const registerUser = async (req, res)=>{
+export const registerUser = async (req: Request, res: Response, next: NextFunction)=>{
     // Registration logic goes here
 
-    const {name, email,password,role} = req.body
+    const {name, email,password} = req.body
 
     const existingUser =await User.findOne({email})
 
@@ -31,10 +32,9 @@ export const registerUser = async (req, res)=>{
     // send the token to the client within a cookie
     res.cookie('accessToken', token, {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
         sameSite: 'lax'
     })
-    console.log(name, email, role)
     res.status(201).json({message: "User registered successfully", user: {
         id: user._id,
         name: user.name,

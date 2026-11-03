@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken'
 export const registerUser = async (req: Request, res: Response, next: NextFunction)=>{
     // Registration logic goes here
 
+    try{
     const {name, email,password} = req.body
 
     const existingUser =await User.findOne({email})
@@ -41,4 +42,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         email: user.email
     },
 token: token});
+
+ }catch(err){
+     next(err)
+ }
 }

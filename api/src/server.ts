@@ -2,7 +2,8 @@
 import 'dotenv/config'
 import app from './app.js'
 import dbConnect from './config/db.js'
-const port = process.env.PORT || 5000
+import { PORT } from './config/env.js'
+const port = PORT || 5000
 
 try{
   await dbConnect()

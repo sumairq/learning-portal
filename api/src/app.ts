@@ -1,11 +1,12 @@
 // this is app.ts file
 import express from "express";
+import cookieParser from 'cookie-parser'
 import { errorHandler } from "./middleware/error.js";
 import authRouter from './routes/auth.js'
 const app = express()
 
 app.use(express.json())
-
+app.use(cookieParser())
 // Routes 
 
 app.use('/api/auth', authRouter )

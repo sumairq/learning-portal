@@ -1,6 +1,7 @@
 // this is the auth controller
 
 import type { NextFunction, Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import User from "../models/user.js";
 import jwt from 'jsonwebtoken'
 
@@ -27,7 +28,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     // create token 
 
     const token = jwt.sign({
-        userId: user._id
+        userId: user._id,
+        role: user.role
     }, process.env.JWT_SECRET!,{expiresIn: "15m"})
 
     // send the token to the client within a cookie
@@ -47,3 +49,52 @@ token: token});
      next(err)
  }
 }
+
+export const loginUser = async (req: Request, res: Response, next: NextFunction)=>{
+    // compare credentials 
+    try{
+
+      const {email, password} = req.body;
+// basic presense validation
+      if(!email || !password){
+        return res.status(400).json({ message: "Email and password are required"})
+      }
+
+// find User in database
+        
+      const user = await User.findOne({email}).select('+password')
+      if(!user){
+        return res.status(401).json({message: "Invalid credentials"})
+      }
+
+// Compare passwords 
+
+    const isMatch = await bcrypt.compare(password, user.password)
+        
+    if(!isMatch){
+        return res.status(401).json({message: "Invalid credentials"})
+    }
+
+ 
+// Generate JWT token
+    const token = jwt.sign({
+        userId: user._id,
+        role: user.role,
+    }, process.env.JWT_SECRET!,{expiresIn: "15m"})
+        
+    // send the token to the client within a cookie
+    res.cookie('accessToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: 'lax'
+    })
+    res.status(200).json({message: "Login successful", user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+    },
+token: token});
+    }catch(error){
+    next(error)
+    }
+    }

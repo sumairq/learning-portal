@@ -3,6 +3,8 @@ import express from "express";
 import cookieParser from 'cookie-parser'
 import { errorHandler } from "./middleware/error.js";
 import authRouter from './routes/auth.js'
+import courseRouter from './routes/courses.js'
+
 import { protect, restrictTo } from "./middleware/auth.js";
 const app = express()
 
@@ -11,6 +13,8 @@ app.use(cookieParser())
 // Routes 
 
 app.use('/api/auth', authRouter )
+app.use('/api/courses', courseRouter )
+
 
 app.get('/', (req,res)=>{
     res.send('Hello World')

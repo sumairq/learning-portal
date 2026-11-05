@@ -3,7 +3,7 @@ import express from "express";
 import cookieParser from 'cookie-parser'
 import { errorHandler } from "./middleware/error.js";
 import authRouter from './routes/auth.js'
-import { protect } from "./middleware/auth.js";
+import { protect, restrictTo } from "./middleware/auth.js";
 const app = express()
 
 app.use(express.json())
@@ -21,7 +21,7 @@ app.get('/api/health', (req,res)=>{
     })
 })
 
-app.get('/api/me',protect, (req,res)=>{
+app.get('/api/me',protect,restrictTo('instructor'), (req,res)=>{
     res.json({
         status: 'ok', 
         message: 'You are accessing a protected route, congratulations!',

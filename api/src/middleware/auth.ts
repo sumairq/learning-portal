@@ -31,4 +31,22 @@ return res.status(401).json({message: 'Invalid or expired token.' })
 }
 };
 
+export const restrictTo = (...allowedRoles: string[]) => {
+    return (req: Request, res: Response, next: NextFunction)=>{
+    // this guard is defensive, unreachable when protect middleware runs first.
+if (!req.user) {
+  return res.status(401).json({ message: 'Not authenticated' });
+}
+
+        if(!allowedRoles.includes(req.user.role)){
+            return res.status(403).json({
+                message: 'Forbidden: insufficient permissions'
+            });
+        }
+
+        next();
+}
+}
+
+
 

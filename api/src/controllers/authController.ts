@@ -9,7 +9,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     // Registration logic goes here
 
     try{
-    const {name, email,password} = req.body
+    const {name, email,password, role} = req.body
 
     const existingUser =await User.findOne({email})
 
@@ -22,7 +22,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
    const user = await User.create({
         name,
         email,
-        password
+        password,
+        role
     })
 
     // create token 

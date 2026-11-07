@@ -33,3 +33,28 @@ try{
     next(error)
 }
 }
+
+// Get all courses
+export const getCourses = async (req: Request, res: Response, next: NextFunction)=>{
+      try{
+        const {category, page, limit} = req.query;
+
+         // 1. Parse and sanitize pagination inputs
+        const parsedPage = Math.max(1, parseInt(page as string) || 1);
+        const parsedLimit = Math.max(1, Math.min(100, parseInt(limit as string) || 10)); // Cap limit at 100 to prevent DB abuse
+        const skip = (parsedPage - 1) * parsedLimit;
+
+        const filter: Record<string, unknown> = {};
+        if(category) filter.category = category;
+        const [courses, total] = await Promise.all([
+        Course.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parsedLimit),
+        Course.countDocuments(filter)
+     ]);
+        res.json({
+            courses, page: parsedPage, totalPages: Math.ceil(total/parsedLimit), total 
+        })    
+        
+    }catch(error){
+        next(error)
+      }
+}

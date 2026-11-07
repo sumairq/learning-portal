@@ -23,6 +23,13 @@ export const errorHandler = (err: CustomError, req: Request, res: Response, next
     message: 'Resource already exists'
   });
 }
+
+if(err.name === 'CastError'){
+      return res.status(400).json({
+    success: false,
+    message: 'Invalid ID format'
+  });
+}
 const statusCode = err.statusCode || 500;
 
 res.status(statusCode).json({

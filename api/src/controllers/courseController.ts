@@ -58,3 +58,19 @@ export const getCourses = async (req: Request, res: Response, next: NextFunction
         next(error)
       }
 }
+
+// Get a course by id
+export const getCourse = async (req: Request, res: Response, next: NextFunction)=>{
+      try{
+        const course = await Course.findById(req.params.id)
+        if(!course){
+          return res.status(404).json({message: 'Course not found'})
+        }
+       return res.json({
+            course
+        })    
+        
+    }catch(error){
+        next(error)
+      }
+}

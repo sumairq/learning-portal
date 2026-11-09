@@ -17,6 +17,7 @@ export interface ICourse extends Document {
     instructorId: Types.ObjectId;
     lessons: ILesson[];
     avgRating: number;
+    price: number;
     reviewCount: number;
     category: "programming" | "design" | "business";
     createdAt: Date;
@@ -35,6 +36,7 @@ const courseSchema = new Schema<ICourse>({
   instructorId: {type: Schema.Types.ObjectId, ref: 'User', required: true},
   lessons: [lessonSchema],
   avgRating: {type: Number, default: 0},
+  price: {type: Number, default: 0, min: 0},
   reviewCount: {type: Number, default: 0}, 
   category: {type: String, enum: ["programming", "design", "business"], required: true},
 }, {timestamps: true})

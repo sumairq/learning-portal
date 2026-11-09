@@ -4,6 +4,8 @@ import cookieParser from 'cookie-parser'
 import { errorHandler } from "./middleware/error.js";
 import authRouter from './routes/auth.js'
 import courseRouter from './routes/courses.js'
+import enrollmentsRouter from './routes/enrollments.js'
+
 
 import { protect, restrictTo } from "./middleware/auth.js";
 const app = express()
@@ -14,6 +16,8 @@ app.use(cookieParser())
 
 app.use('/api/auth', authRouter )
 app.use('/api/courses', courseRouter )
+app.use('/api/enrollments', enrollmentsRouter )
+
 
 
 app.get('/', (req,res)=>{

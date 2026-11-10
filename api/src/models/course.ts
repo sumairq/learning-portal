@@ -8,6 +8,7 @@ interface ILesson {
     title: string;
     videoUrl: string;
     order: number;
+    _id: Types.ObjectId;
 }
 
 // Interface for the course

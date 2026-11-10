@@ -39,3 +39,21 @@ export const createEnrollment = async (req: Request, res: Response, next: NextFu
      next(error)
     }
 }
+
+// Get my enrollments 
+export const getMyEnrollments = async (req: Request, res: Response, next: NextFunction)=>{
+  
+    try{
+
+        if(!req.user){
+           return res.status(401).json({message: 'Login to see enrollments'})
+        }
+     const enrollments = await Enrollment.find({userId: req.user.userId}).populate('courseId', 'title description category avgRating');
+
+     return res.status(200).json({enrollments})
+
+    }
+     catch(error){
+        next(error)
+     }   
+    }

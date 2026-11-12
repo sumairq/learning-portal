@@ -6,7 +6,10 @@ import {
   updateProgress,
 } from "../controllers/enrollmentController.js";
 import { validate } from "../middleware/validate.js";
-import { createEnrollmentSchema } from "../schemas/enrollment.schema.js";
+import {
+  createEnrollmentSchema,
+  updateProgressSchema,
+} from "../schemas/enrollment.schema.js";
 
 const router = express.Router();
 
@@ -23,6 +26,11 @@ router.post(
 router.get("/my", protect, getMyEnrollments);
 
 //PATCH  /api/enrollments/progress
-router.patch("/progress", protect, updateProgress);
+router.patch(
+  "/progress",
+  protect,
+  validate(updateProgressSchema),
+  updateProgress,
+);
 
 export default router;

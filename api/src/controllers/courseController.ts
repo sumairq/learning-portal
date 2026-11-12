@@ -1,9 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import Course from "../models/course.js";
+import type { CreateCourseInput } from "../schemas/course.schema.js";
 
 // Create a new course
 export const createCourse = async (
-  req: Request,
+  req: Request<unknown, unknown, CreateCourseInput>,
   res: Response,
   next: NextFunction,
 ) => {

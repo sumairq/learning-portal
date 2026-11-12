@@ -4,9 +4,13 @@ import type { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
+import type {
+  LoginUserInput,
+  RegisterUserInput,
+} from "../schemas/auth.schema.js";
 
 export const registerUser = async (
-  req: Request,
+  req: Request<unknown, unknown, RegisterUserInput>,
   res: Response,
   next: NextFunction,
 ) => {
@@ -61,7 +65,7 @@ export const registerUser = async (
 };
 
 export const loginUser = async (
-  req: Request,
+  req: Request<unknown, unknown, LoginUserInput>,
   res: Response,
   next: NextFunction,
 ) => {

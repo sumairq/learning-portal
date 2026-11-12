@@ -1,20 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import Course from "../models/course.js";
 import Enrollment from "../models/enrollment.js";
+import type {
+  CreateEnrollmentInput,
+  UpdateProgressInput,
+} from "../schemas/enrollment.schema.js";
 
 // Create a new enrollment
 export const createEnrollment = async (
-  req: Request,
+  req: Request<unknown, unknown, CreateEnrollmentInput>,
   res: Response,
   next: NextFunction,
 ) => {
   // fetch fields from request body
-
   try {
-    if (!req.body.courseId) {
-      return res.status(400).json({ message: "CourseId not provided" });
-    }
-
     if (!req.user) {
       return res.status(401).json({ message: "Login to enroll" });
     }
@@ -70,19 +69,15 @@ export const getMyEnrollments = async (
 };
 
 export const updateProgress = async (
-  req: Request,
+  req: Request<unknown, unknown, UpdateProgressInput>,
   res: Response,
   next: NextFunction,
 ) => {
   //chosen structure {courseId, lessonId} over {enrollmentId, lessonId} => easier to verify enrollment ownership with the {courseId, lessonId} structure.
-  // check presence of the courseId and userId
+  // check presence of the courseId and userId  Outdated comment... using zod schema for input validation
 
   try {
     const { courseId, lessonId } = req.body;
-
-    if (!courseId || !lessonId) {
-      return res.status(400).json({ message: "Bad Input" });
-    }
 
     if (!req.user) {
       return res

@@ -29,7 +29,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["eslint.config.mjs"],
+    files: ["**/*.config.mjs", "**/*.config.js"],
     ...tseslint.configs.disableTypeChecked,
   },
 ]);

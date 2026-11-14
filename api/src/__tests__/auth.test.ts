@@ -71,3 +71,78 @@ describe("POST /api/auth/register", () => {
     expect(user!.role).toBe("student");
   });
 });
+
+describe("POST /api/auth/login", () => {
+  it("Logs the user in and returns 200", async () => {
+    // Create a user
+    await request(app).post("/api/auth/register").send({
+      name: "Test User",
+      email: email,
+      password: "password123",
+    });
+
+    // log the user in
+
+    const res = await request(app).post("/api/auth/login").send({
+      email: email,
+      password: "password123",
+    });
+
+    // assert
+    const body = res.body as { user: { email: string }; token: string };
+    expect(res.status).toBe(200);
+    expect(body.user.email).toBe(email);
+    expect(body.user).not.toHaveProperty("password");
+    expect(body.token).toBeDefined();
+  });
+
+  it("returns 401 for a wrong password", async () => {
+    // Create a user
+    await request(app).post("/api/auth/register").send({
+      name: "Test User",
+      email: email,
+      password: "password123",
+    });
+
+    // log the user in
+
+    const res = await request(app).post("/api/auth/login").send({
+      email: email,
+      password: "password124",
+    });
+
+    expect(res.status).toBe(401);
+  });
+  it("returns 401 for an unknown email", async () => {
+    const res = await request(app).post("/api/auth/login").send({
+      email: email,
+      password: "password123",
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns an identical response for a wrong password and an unknown email", async () => {
+    // Create a user
+    await request(app).post("/api/auth/register").send({
+      name: "Test User",
+      email: email,
+      password: "password123",
+    });
+
+    // log the user in
+
+    const res1 = await request(app).post("/api/auth/login").send({
+      email: email,
+      password: "password124",
+    });
+
+    const res2 = await request(app).post("/api/auth/login").send({
+      email: "unknown@unknown.com",
+      password: "password123",
+    });
+
+    expect(res1.status).toBe(res2.status);
+    expect(res1.body).toEqual(res2.body);
+  });
+});

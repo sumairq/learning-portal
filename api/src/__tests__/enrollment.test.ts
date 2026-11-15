@@ -189,3 +189,109 @@ describe("POST /api/enrollments", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("GET /my", () => {
+  it("returns the student's enrollments with the course populated", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    const res = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    const body = res.body as { enrollments: { courseId: { title: string } }[] };
+    expect(body.enrollments).toHaveLength(1);
+    expect(body.enrollments[0]!.courseId).not.toHaveProperty("lessons");
+    expect(body.enrollments[0]!.courseId.title).toBe("React.js Fundamentals");
+  });
+
+  it("returns 401 without a token", async () => {
+    const res = await request(app).get("/api/enrollments/my");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 200 when list is empty", async () => {
+    const res = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+    const body = res.body as { enrollments: unknown[] };
+    expect(body.enrollments).toHaveLength(0);
+  });
+
+  // cross student test
+
+  it("ensure two users can access only their own enrollments", async () => {
+    // create user number 2
+
+    await request(app).post("/api/auth/register").send({
+      name: "Test User",
+      email: "student2@student.com",
+      password: "password123",
+    });
+
+    const res2 = await request(app).post("/api/auth/login").send({
+      email: "student2@student.com",
+      password: "password123",
+    });
+
+    const body2 = res2.body as { token: string };
+    const student2Token = body2.token;
+
+    // create 2 enrollments respectively one by each user enrolled in the same course.
+    //enrollment 1
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    // enrollment 2
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${student2Token}`);
+
+    // check student 1's enrollments
+    const resUser1 = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    // check student 2's enrollments
+    const resUser2 = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${student2Token}`);
+
+    const resbody1 = resUser1.body as {
+      enrollments: { userId: string; courseId: string }[];
+    };
+    if (!resbody1.enrollments[0]) {
+      throw new Error("User 1's enrollments are empty");
+    }
+
+    const resbody2 = resUser2.body as {
+      enrollments: { userId: string; courseId: string }[];
+    };
+
+    if (!resbody2.enrollments[0]) {
+      throw new Error("User 2's enrollments are empty");
+    }
+    // compare id of user1 with userid from enrollment
+    const user2 = await User.findOne({ email: "student2@student.com" });
+    if (!user2) {
+      throw new Error("User was not found in the findOne lookup.");
+    }
+    expect(resbody1.enrollments).toHaveLength(1);
+    expect(resbody2.enrollments).toHaveLength(1);
+    expect(resbody1.enrollments[0].userId).toEqual(studentId);
+    expect(resbody2.enrollments[0].userId).toEqual(String(user2._id));
+  });
+});

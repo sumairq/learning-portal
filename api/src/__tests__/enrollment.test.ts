@@ -8,6 +8,14 @@ let studentToken: string;
 let instructorToken: string;
 let studentId: string;
 let courseId: string;
+// This setup does the following steps in order:
+//- Create an instructor user directly through the User model (api is not designed to have an endpoint to create an instructor user)
+//- log the instructor user in (save the instructor token in the variable instructorToken)
+//- Create a course using the instructor token
+//- Create a student user
+//- Log the student user in (save the student token in the variable studentToken)
+//- Lookup the User model and store id in studentId (we use it for creating enrollments)
+//- Lookup the Course model and store id in courseId (we use it for creating enrollments)
 beforeEach(async () => {
   await User.create({
     name: "John Doe",
@@ -23,7 +31,6 @@ beforeEach(async () => {
 
   const body = res1.body as { token: string };
   instructorToken = body.token;
-  // Create a course using the token
 
   await request(app)
     .post("/api/courses")
@@ -78,14 +85,11 @@ beforeEach(async () => {
     })
     .set("Authorization", `Bearer ${instructorToken}`);
 
-  // create a student user
   await request(app).post("/api/auth/register").send({
     name: "Test User",
     email: "student@student.com",
     password: "password123",
   });
-
-  // log the user in
 
   const res2 = await request(app).post("/api/auth/login").send({
     email: "student@student.com",
@@ -104,8 +108,6 @@ beforeEach(async () => {
   if (!course) throw new Error("Setup failed: course not created");
 
   courseId = String(course._id);
-
-  // create the enrollment
 });
 
 describe("POST /api/enrollments", () => {

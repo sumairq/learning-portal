@@ -8,6 +8,7 @@ let studentToken: string;
 let instructorToken: string;
 let studentId: string;
 let courseId: string;
+let lessonId: string;
 // This setup does the following steps in order:
 //- Create an instructor user directly through the User model (api is not designed to have an endpoint to create an instructor user)
 //- log the instructor user in (save the instructor token in the variable instructorToken)
@@ -108,6 +109,10 @@ beforeEach(async () => {
   if (!course) throw new Error("Setup failed: course not created");
 
   courseId = String(course._id);
+
+  const lesson = course.lessons[0];
+  if (!lesson) throw new Error("Setup failed: course has no lessons");
+  lessonId = String(lesson._id);
 });
 
 describe("POST /api/enrollments", () => {
@@ -293,5 +298,119 @@ describe("GET /my", () => {
     expect(resbody2.enrollments).toHaveLength(1);
     expect(resbody1.enrollments[0].userId).toEqual(studentId);
     expect(resbody2.enrollments[0].userId).toEqual(String(user2._id));
+  });
+});
+
+describe("PATCH /api/enrollments/progress", () => {
+  it("Marks progress and returns 200", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+
+    const enrollment = await Enrollment.findOne({
+      courseId,
+      userId: studentId,
+    });
+
+    if (!enrollment) {
+      throw new Error("Couldn't find enrollment in the database");
+    }
+    expect(String(enrollment.completedLessons[0])).toEqual(lessonId);
+  });
+
+  it("adding the same lesson twice leaves one entry", async () => {
+    // update the progress twice. second patch should be a no-op ...
+
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    // duplicate attempt
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+    const enrollment = await Enrollment.findOne({
+      courseId,
+      userId: studentId,
+    });
+
+    if (!enrollment) {
+      throw new Error("Couldn't find enrollment in the database");
+    }
+    expect(enrollment.completedLessons).toHaveLength(1);
+  });
+
+  it("returns 404, lesson not in the course", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId: "6aecd69320fca879b1e9e63f",
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(404);
+    const body = res.body as { message: string };
+    expect(body.message).toBe("Lesson not found in this course");
+  });
+
+  it("returns 404, not enrolled in this course", async () => {
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(404);
+    const body = res.body as { message: string };
+    expect(body.message).toBe("You are not enrolled in this course");
+  });
+
+  it("returns 401, not logged in", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await request(app).patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId,
+    });
+
+    expect(res.status).toBe(401);
   });
 });

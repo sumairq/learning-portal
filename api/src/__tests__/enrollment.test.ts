@@ -8,6 +8,7 @@ let studentToken: string;
 let instructorToken: string;
 let studentId: string;
 let courseId: string;
+let lessonId: string;
 // This setup does the following steps in order:
 //- Create an instructor user directly through the User model (api is not designed to have an endpoint to create an instructor user)
 //- log the instructor user in (save the instructor token in the variable instructorToken)
@@ -108,6 +109,10 @@ beforeEach(async () => {
   if (!course) throw new Error("Setup failed: course not created");
 
   courseId = String(course._id);
+
+  const lesson = course.lessons[0];
+  if (!lesson) throw new Error("Setup failed: course has no lessons");
+  lessonId = String(lesson._id);
 });
 
 describe("POST /api/enrollments", () => {
@@ -187,5 +192,225 @@ describe("POST /api/enrollments", () => {
       .set("Authorization", `Bearer ${studentToken}`);
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /my", () => {
+  it("returns the student's enrollments with the course populated", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    const res = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    const body = res.body as { enrollments: { courseId: { title: string } }[] };
+    expect(body.enrollments).toHaveLength(1);
+    expect(body.enrollments[0]!.courseId).not.toHaveProperty("lessons");
+    expect(body.enrollments[0]!.courseId.title).toBe("React.js Fundamentals");
+  });
+
+  it("returns 401 without a token", async () => {
+    const res = await request(app).get("/api/enrollments/my");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 200 when list is empty", async () => {
+    const res = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+    const body = res.body as { enrollments: unknown[] };
+    expect(body.enrollments).toHaveLength(0);
+  });
+
+  // cross student test
+
+  it("ensure two users can access only their own enrollments", async () => {
+    // create user number 2
+
+    await request(app).post("/api/auth/register").send({
+      name: "Test User",
+      email: "student2@student.com",
+      password: "password123",
+    });
+
+    const res2 = await request(app).post("/api/auth/login").send({
+      email: "student2@student.com",
+      password: "password123",
+    });
+
+    const body2 = res2.body as { token: string };
+    const student2Token = body2.token;
+
+    // create 2 enrollments respectively one by each user enrolled in the same course.
+    //enrollment 1
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    // enrollment 2
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${student2Token}`);
+
+    // check student 1's enrollments
+    const resUser1 = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    // check student 2's enrollments
+    const resUser2 = await request(app)
+      .get("/api/enrollments/my")
+      .set("Authorization", `Bearer ${student2Token}`);
+
+    const resbody1 = resUser1.body as {
+      enrollments: { userId: string; courseId: string }[];
+    };
+    if (!resbody1.enrollments[0]) {
+      throw new Error("User 1's enrollments are empty");
+    }
+
+    const resbody2 = resUser2.body as {
+      enrollments: { userId: string; courseId: string }[];
+    };
+
+    if (!resbody2.enrollments[0]) {
+      throw new Error("User 2's enrollments are empty");
+    }
+    // compare id of user1 with userid from enrollment
+    const user2 = await User.findOne({ email: "student2@student.com" });
+    if (!user2) {
+      throw new Error("User was not found in the findOne lookup.");
+    }
+    expect(resbody1.enrollments).toHaveLength(1);
+    expect(resbody2.enrollments).toHaveLength(1);
+    expect(resbody1.enrollments[0].userId).toEqual(studentId);
+    expect(resbody2.enrollments[0].userId).toEqual(String(user2._id));
+  });
+});
+
+describe("PATCH /api/enrollments/progress", () => {
+  it("Marks progress and returns 200", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+
+    const enrollment = await Enrollment.findOne({
+      courseId,
+      userId: studentId,
+    });
+
+    if (!enrollment) {
+      throw new Error("Couldn't find enrollment in the database");
+    }
+    expect(String(enrollment.completedLessons[0])).toEqual(lessonId);
+  });
+
+  it("adding the same lesson twice leaves one entry", async () => {
+    // update the progress twice. second patch should be a no-op ...
+
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    // duplicate attempt
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+    const enrollment = await Enrollment.findOne({
+      courseId,
+      userId: studentId,
+    });
+
+    if (!enrollment) {
+      throw new Error("Couldn't find enrollment in the database");
+    }
+    expect(enrollment.completedLessons).toHaveLength(1);
+  });
+
+  it("returns 404, lesson not in the course", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId: "6aecd69320fca879b1e9e63f",
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(404);
+    const body = res.body as { message: string };
+    expect(body.message).toBe("Lesson not found in this course");
+  });
+
+  it("returns 404, not enrolled in this course", async () => {
+    const res = await request(app)
+      .patch("/api/enrollments/progress")
+      .send({
+        courseId,
+        lessonId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    expect(res.status).toBe(404);
+    const body = res.body as { message: string };
+    expect(body.message).toBe("You are not enrolled in this course");
+  });
+
+  it("returns 401, not logged in", async () => {
+    await request(app)
+      .post("/api/enrollments")
+      .send({
+        courseId,
+      })
+      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await request(app).patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId,
+    });
+
+    expect(res.status).toBe(401);
   });
 });

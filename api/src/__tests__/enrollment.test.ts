@@ -4,17 +4,16 @@ import Enrollment from "../models/enrollment.js";
 import Course from "../models/course.js";
 import User from "../models/user.js";
 
-let studentToken: string;
-let instructorToken: string;
+let instructorAgent: ReturnType<typeof request.agent>;
+let studentAgent: ReturnType<typeof request.agent>;
 let studentId: string;
 let courseId: string;
 let lessonId: string;
 // This setup does the following steps in order:
 //- Create an instructor user directly through the User model (api is not designed to have an endpoint to create an instructor user)
-//- log the instructor user in (save the instructor token in the variable instructorToken)
-//- Create a course using the instructor token
-//- Create a student user
-//- Log the student user in (save the student token in the variable studentToken)
+//- log the instructor user in using the instructorAgent
+//- Create a course using the instructorAgent
+//- Create a student user using the studentAgent
 //- Lookup the User model and store id in studentId (we use it for creating enrollments)
 //- Lookup the Course model and store id in courseId (we use it for creating enrollments)
 beforeEach(async () => {
@@ -25,80 +24,70 @@ beforeEach(async () => {
     password: "password1234",
   });
 
-  const res1 = await request(app).post("/api/auth/login").send({
+  instructorAgent = request.agent(app);
+
+  await instructorAgent.post("/api/auth/login").send({
     email: "john123@john.com",
     password: "password1234",
   });
 
-  const body = res1.body as { token: string };
-  instructorToken = body.token;
+  await instructorAgent.post("/api/courses").send({
+    title: "React.js Fundamentals",
+    description:
+      "Learn React.js from the ground up, covering components, JSX, props, state management, event handling, hooks, React Router, and API integration. Build interactive and reusable user interfaces using modern React development practices.",
+    category: "programming",
+    price: 0,
+    lessons: [
+      {
+        title: "Introduction to React.js",
+        videoUrl: "https://www.youtube.com/watch?v=Tn6-PIqc4UM",
+        order: 1,
+      },
+      {
+        title: "Understanding JSX and Components",
+        videoUrl: "https://www.youtube.com/watch?v=SqcY0GlETPk",
+        order: 2,
+      },
+      {
+        title: "Props and Component Composition",
+        videoUrl: "https://www.youtube.com/watch?v=PHaECbrKgs0",
+        order: 3,
+      },
+      {
+        title: "State and Event Handling",
+        videoUrl: "https://www.youtube.com/watch?v=O6P86uwfdR0",
+        order: 4,
+      },
+      {
+        title: "React Hooks: useState and useEffect",
+        videoUrl: "https://www.youtube.com/watch?v=O6P86uwfdR0",
+        order: 5,
+      },
+      {
+        title: "Working with Forms in React",
+        videoUrl: "https://www.youtube.com/watch?v=IYvD9oBCuJI",
+        order: 6,
+      },
+      {
+        title: "React Router and Navigation",
+        videoUrl: "https://www.youtube.com/watch?v=Ul3y1LXxzdU",
+        order: 7,
+      },
+      {
+        title: "Fetching Data from APIs in React",
+        videoUrl: "https://www.youtube.com/watch?v=ZqgiuPt5QZo",
+        order: 8,
+      },
+    ],
+  });
 
-  await request(app)
-    .post("/api/courses")
-    .send({
-      title: "React.js Fundamentals",
-      description:
-        "Learn React.js from the ground up, covering components, JSX, props, state management, event handling, hooks, React Router, and API integration. Build interactive and reusable user interfaces using modern React development practices.",
-      category: "programming",
-      price: 0,
-      lessons: [
-        {
-          title: "Introduction to React.js",
-          videoUrl: "https://www.youtube.com/watch?v=Tn6-PIqc4UM",
-          order: 1,
-        },
-        {
-          title: "Understanding JSX and Components",
-          videoUrl: "https://www.youtube.com/watch?v=SqcY0GlETPk",
-          order: 2,
-        },
-        {
-          title: "Props and Component Composition",
-          videoUrl: "https://www.youtube.com/watch?v=PHaECbrKgs0",
-          order: 3,
-        },
-        {
-          title: "State and Event Handling",
-          videoUrl: "https://www.youtube.com/watch?v=O6P86uwfdR0",
-          order: 4,
-        },
-        {
-          title: "React Hooks: useState and useEffect",
-          videoUrl: "https://www.youtube.com/watch?v=O6P86uwfdR0",
-          order: 5,
-        },
-        {
-          title: "Working with Forms in React",
-          videoUrl: "https://www.youtube.com/watch?v=IYvD9oBCuJI",
-          order: 6,
-        },
-        {
-          title: "React Router and Navigation",
-          videoUrl: "https://www.youtube.com/watch?v=Ul3y1LXxzdU",
-          order: 7,
-        },
-        {
-          title: "Fetching Data from APIs in React",
-          videoUrl: "https://www.youtube.com/watch?v=ZqgiuPt5QZo",
-          order: 8,
-        },
-      ],
-    })
-    .set("Authorization", `Bearer ${instructorToken}`);
+  studentAgent = request.agent(app);
 
-  await request(app).post("/api/auth/register").send({
+  await studentAgent.post("/api/auth/register").send({
     name: "Test User",
     email: "student@student.com",
     password: "password123",
   });
-
-  const res2 = await request(app).post("/api/auth/login").send({
-    email: "student@student.com",
-    password: "password123",
-  });
-
-  const body2 = res2.body as { token: string };
-  studentToken = body2.token;
 
   const student = await User.findOne({ email: "student@student.com" });
   if (!student) throw new Error("Setup failed: student not created");
@@ -118,12 +107,9 @@ beforeEach(async () => {
 describe("POST /api/enrollments", () => {
   it("creating an enrollment should return 201", async () => {
     // create an enrollment
-    const res = await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
     expect(res.status).toBe(201);
     const enrollment = await Enrollment.findOne({ courseId });
@@ -134,32 +120,24 @@ describe("POST /api/enrollments", () => {
 
   it("returns 409 when the student is already enrolled", async () => {
     // create an enrollment
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
     // Try creating a second enrollment
-    const res = await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
     expect(res.status).toBe(409);
     const count = await Enrollment.countDocuments({ courseId });
     expect(count).toBe(1);
   });
+
   it("returns 403 when an instructor tries to enroll", async () => {
-    const res = await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${instructorToken}`);
+    const res = await instructorAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
     expect(res.status).toBe(403);
   });
@@ -173,23 +151,17 @@ describe("POST /api/enrollments", () => {
   });
 
   it("returns 404 for a course that does not exist", async () => {
-    const res = await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId: "6aecd69320fca879b1e9e63c",
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.post("/api/enrollments").send({
+      courseId: "6aecd69320fca879b1e9e63c",
+    });
 
     expect(res.status).toBe(404);
   });
 
   it("returns 400 for a malformed courseId", async () => {
-    const res = await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId: "not-an-id",
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.post("/api/enrollments").send({
+      courseId: "not-an-id",
+    });
 
     expect(res.status).toBe(400);
   });
@@ -197,16 +169,11 @@ describe("POST /api/enrollments", () => {
 
 describe("GET /my", () => {
   it("returns the student's enrollments with the course populated", async () => {
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
-    const res = await request(app)
-      .get("/api/enrollments/my")
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.get("/api/enrollments/my");
 
     expect(res.status).toBe(200);
     const body = res.body as { enrollments: { courseId: { title: string } }[] };
@@ -221,9 +188,8 @@ describe("GET /my", () => {
   });
 
   it("returns 200 when list is empty", async () => {
-    const res = await request(app)
-      .get("/api/enrollments/my")
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.get("/api/enrollments/my");
+
     expect(res.status).toBe(200);
     const body = res.body as { enrollments: unknown[] };
     expect(body.enrollments).toHaveLength(0);
@@ -240,40 +206,29 @@ describe("GET /my", () => {
       password: "password123",
     });
 
-    const res2 = await request(app).post("/api/auth/login").send({
+    const student2Agent = request.agent(app);
+
+    await student2Agent.post("/api/auth/login").send({
       email: "student2@student.com",
       password: "password123",
     });
 
-    const body2 = res2.body as { token: string };
-    const student2Token = body2.token;
-
     // create 2 enrollments respectively one by each user enrolled in the same course.
     //enrollment 1
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
     // enrollment 2
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${student2Token}`);
+    await student2Agent.post("/api/enrollments").send({
+      courseId,
+    });
 
     // check student 1's enrollments
-    const resUser1 = await request(app)
-      .get("/api/enrollments/my")
-      .set("Authorization", `Bearer ${studentToken}`);
+    const resUser1 = await studentAgent.get("/api/enrollments/my");
 
     // check student 2's enrollments
-    const resUser2 = await request(app)
-      .get("/api/enrollments/my")
-      .set("Authorization", `Bearer ${student2Token}`);
+    const resUser2 = await student2Agent.get("/api/enrollments/my");
 
     const resbody1 = resUser1.body as {
       enrollments: { userId: string; courseId: string }[];
@@ -303,19 +258,15 @@ describe("GET /my", () => {
 
 describe("PATCH /api/enrollments/progress", () => {
   it("Marks progress and returns 200", async () => {
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
-    const res = await request(app)
-      .patch("/api/enrollments/progress")
-      .send({
-        courseId,
-        lessonId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
+
+    const res = await studentAgent.patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId,
+    });
+
     expect(res.status).toBe(200);
 
     const enrollment = await Enrollment.findOne({
@@ -332,28 +283,21 @@ describe("PATCH /api/enrollments/progress", () => {
   it("adding the same lesson twice leaves one entry", async () => {
     // update the progress twice. second patch should be a no-op ...
 
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
-    await request(app)
-      .patch("/api/enrollments/progress")
-      .send({
-        courseId,
-        lessonId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId,
+    });
+
     // duplicate attempt
-    const res = await request(app)
-      .patch("/api/enrollments/progress")
-      .send({
-        courseId,
-        lessonId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId,
+    });
+
     expect(res.status).toBe(200);
     const enrollment = await Enrollment.findOne({
       courseId,
@@ -367,45 +311,36 @@ describe("PATCH /api/enrollments/progress", () => {
   });
 
   it("returns 404, lesson not in the course", async () => {
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
 
-    const res = await request(app)
-      .patch("/api/enrollments/progress")
-      .send({
-        courseId,
-        lessonId: "6aecd69320fca879b1e9e63f",
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId: "6aecd69320fca879b1e9e63f",
+    });
+
     expect(res.status).toBe(404);
     const body = res.body as { message: string };
     expect(body.message).toBe("Lesson not found in this course");
   });
 
   it("returns 404, not enrolled in this course", async () => {
-    const res = await request(app)
-      .patch("/api/enrollments/progress")
-      .send({
-        courseId,
-        lessonId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    const res = await studentAgent.patch("/api/enrollments/progress").send({
+      courseId,
+      lessonId,
+    });
+
     expect(res.status).toBe(404);
     const body = res.body as { message: string };
     expect(body.message).toBe("You are not enrolled in this course");
   });
 
   it("returns 401, not logged in", async () => {
-    await request(app)
-      .post("/api/enrollments")
-      .send({
-        courseId,
-      })
-      .set("Authorization", `Bearer ${studentToken}`);
+    await studentAgent.post("/api/enrollments").send({
+      courseId,
+    });
+
     const res = await request(app).patch("/api/enrollments/progress").send({
       courseId,
       lessonId,

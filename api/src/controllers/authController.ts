@@ -8,6 +8,7 @@ import type {
   LoginUserInput,
   RegisterUserInput,
 } from "../schemas/auth.schema.js";
+import { JWT_SECRET } from "../config/env.js";
 
 export const registerUser = async (
   req: Request<unknown, unknown, RegisterUserInput>,
@@ -40,7 +41,7 @@ export const registerUser = async (
         userId: user._id,
         role: user.role,
       },
-      process.env.JWT_SECRET!,
+      JWT_SECRET,
       { expiresIn: "15m" },
     );
 
@@ -57,7 +58,6 @@ export const registerUser = async (
         name: user.name,
         email: user.email,
       },
-      token: token,
     });
   } catch (err) {
     next(err);
@@ -72,14 +72,6 @@ export const loginUser = async (
   // compare credentials
   try {
     const { email, password } = req.body;
-    // // basic presense validation   **** NO longer required after integrating zod validation
-    // if (!email || !password) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "Email and password are required" });
-    // }
-
-    // find User in database
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
@@ -100,7 +92,7 @@ export const loginUser = async (
         userId: user._id,
         role: user.role,
       },
-      process.env.JWT_SECRET!,
+      JWT_SECRET,
       { expiresIn: "15m" },
     );
 
@@ -117,7 +109,6 @@ export const loginUser = async (
         name: user.name,
         email: user.email,
       },
-      token: token,
     });
   } catch (error) {
     next(error);

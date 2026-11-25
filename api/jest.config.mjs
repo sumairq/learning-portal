@@ -7,4 +7,5 @@ export default {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   testTimeout: 30000,
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
 };

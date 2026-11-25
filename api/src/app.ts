@@ -1,16 +1,19 @@
 // this is app.ts file
 import express from "express";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import { errorHandler } from "./middleware/error.js";
 import authRouter from "./routes/auth.js";
 import courseRouter from "./routes/courses.js";
 import enrollmentsRouter from "./routes/enrollments.js";
 
 import { protect, restrictTo } from "./middleware/auth.js";
+import { CLIENT_URL } from "./config/env.js";
 const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors({ origin: CLIENT_URL, credentials: true }));
 // Routes
 
 app.use("/api/auth", authRouter);

@@ -14,7 +14,11 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(201);
     expect(body.user.email).toBe(email);
     expect(body.user).not.toHaveProperty("password");
-    expect(body.token).toBeDefined();
+    const cookies = res.headers["set-cookie"];
+    if (!cookies) throw new Error("No set-cookie header on the response");
+    expect(cookies[0]).toContain("accessToken");
+    expect(cookies[0]).toContain("HttpOnly");
+    expect(cookies[0]).toContain("SameSite=Lax");
     const user = await User.findOne({ email: email }).select("+password");
     expect(user).not.toBeNull();
     expect(user!.password).not.toBe("password123");
@@ -93,7 +97,11 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(200);
     expect(body.user.email).toBe(email);
     expect(body.user).not.toHaveProperty("password");
-    expect(body.token).toBeDefined();
+    const cookies = res.headers["set-cookie"];
+    if (!cookies) throw new Error("No set-cookie header on the response");
+    expect(cookies[0]).toContain("accessToken");
+    expect(cookies[0]).toContain("HttpOnly");
+    expect(cookies[0]).toContain("SameSite=Lax");
   });
 
   it("returns 401 for a wrong password", async () => {
